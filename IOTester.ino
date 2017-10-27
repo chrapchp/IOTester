@@ -32,7 +32,11 @@
 #define ONE_TEMPERATURE_PRECISION 9
 
 
+#define IOTesterRS485
 
+#ifdef IOTesterRS485
+DA_DiscreteOutput MAX285TX_ENABLE = DA_DiscreteOutput( 6, HIGH );  // 1 is enable, 0 rx enabled
+#endif
 
 OneWire oneWireBus1(TEMPERATURE1);
 DallasTemperature sensors1(&oneWireBus1);
@@ -83,7 +87,15 @@ void onFT_002_PulseIn()
 
 void onEdgeDetect(bool state, int pin)
 {
+    #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
   *tracePort << "Edge Detection:" << state << " on pin " << pin << endl;
+    #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
 }
 
 
@@ -125,9 +137,17 @@ void initAsInput( int aPin )
    removeObjectsFor( aPin);
    DiscreteIO[aPin].dInput = new DA_DiscreteInput(aPin, DA_DiscreteInput::ToggleDetect, true);
    DiscreteIO[aPin].dInput -> setOnEdgeEvent(& onEdgeDetect);
+  #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
 
    *tracePort << "Pin " << aPin << " defined as input." << endl;
+     #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
 } 
+
 
 void initAsOutput( int aPin )
 {
@@ -136,22 +156,30 @@ void initAsOutput( int aPin )
   removeObjectsFor( aPin);
   DiscreteIO[aPin].dOutput = new DA_DiscreteOutput(aPin, LOW);
 
+  #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
    *tracePort << "Pin " << aPin << " defined as output." << endl;
+     #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
 }
 
 void initDiscreteIO()
 {
   
- // initAsInput( 4 );
+  initAsInput( 2 );
  // initAsInput( 7 );
  // initAsInput( 9 );
  // initAsInput( 12 );  
 
 
-  initAsOutput(3);  
-  initAsOutput(9);   
+ // initAsOutput(3);  
+ // initAsOutput(9);   
   initAsOutput(10);    
-  initAsOutput(11);  
+ // initAsOutput(11);  
 
 
 
@@ -181,6 +209,9 @@ void init1WireTemperatureSensor(DallasTemperature * sensor, int pin)
   {
 
 #ifdef PROCESS_TERMINAL
+    #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
     *tracePort << "Channel " << pin << " 1Wire Temperature initialized. Address =  ";
     printOneWireAddress(tracePort, address, true);
 #endif
@@ -193,6 +224,10 @@ void init1WireTemperatureSensor(DallasTemperature * sensor, int pin)
 #ifdef PROCESS_TERMINAL
     *tracePort << "Unable to find address for 1Wire Temperature Device @ " << pin << endl;
 #endif
+
+         #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
 
   }
 }
@@ -331,12 +366,15 @@ void printDigits(int digits)
 
 void showCommands()
 {
+  #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
   *tracePort << "-------------------------------------------------------------------" << endl;
   *tracePort << F("OXX  - Set Discrete Output Pin where XX is pin #") << endl;
   *tracePort << F("IXX  - Set Discrete Input Pin 14 = all as inputs") << endl;
   *tracePort << F("RX   - Read Analog Raw X pin") << endl;
   *tracePort << F("DX   - Read Discrete X Pin") << endl;
-  *tracePort << F("WD X - Write Discrete output X is pin ") << endl;
+  *tracePort << F("WXX 1|0 - Write Discrete output XX is pin ") << endl;
   *tracePort << F("DI   - Dump all discrete Inputs ") << endl;
   *tracePort << F("DO   - Dump all discrete Outputs and toogles output ") << endl;
   *tracePort << F("DA   - Dump all analog Inputs ") << endl;
@@ -345,6 +383,11 @@ void showCommands()
   *tracePort << F("TR|S X  - Period Toggle DO X = pin # R=run/S=Stop") << endl;  
   *tracePort << F("1W    - display one wire temperatures") << endl; 
   *tracePort << "------------------------------------------------------------------" << endl;
+
+  #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
 }
 
 bool toggleDO( int aPin)
@@ -355,8 +398,15 @@ bool toggleDO( int aPin)
       DiscreteIO[aPin].dOutput -> serialize(tracePort, true);
       return(true);
     }
+  #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
 
     *tracePort << "Pin " << aPin << " is not defined as an output." << endl;  
+     #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+ 
     return( false );
 }
 
@@ -376,7 +426,15 @@ void processTogglePin()
   }
   else 
   {
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
     *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
   }  
 }
 }
@@ -421,7 +479,15 @@ void processSetupAsInputs()
   }
   else 
   {
+  #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
     *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
   }
 }
 
@@ -445,7 +511,15 @@ void processSetupAsOutputs()
   }
   else 
   {
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
     *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
   }
 }
 void processReadDiscretes()
@@ -480,7 +554,15 @@ void readAnalogs()
     sensorValue = analogRead(i);
     delay(10);
     sensorValue = map(sensorValue, 0, 1023, 0, 5);
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
     *tracePort << "Analog  " << i << " = " << sensorValue << endl;
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
   }
 }
 
@@ -509,7 +591,15 @@ void processPolling()
     }
     else
     {
+        #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
       *tracePort << mode << " is outside 0-1" << endl;
+        #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
     }
     
     break;
@@ -524,7 +614,15 @@ void processPolling()
     }
     else
     {
+        #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
       *tracePort << mode << " is outside 0-1" << endl;
+        #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
     }
       // 
       break;
@@ -538,7 +636,15 @@ void processPolling()
 void poll1WireTemperature( DallasTemperature *sensor, int aPin ) 
 {
   sensor->requestTemperatures();
+    #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
   *tracePort << "Temperature " << aPin << " = " << sensor->getTempCByIndex(0) << " C" << endl;
+    #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
 }
 
 
@@ -548,6 +654,33 @@ void processOneWireTemperatures()
  poll1WireTemperature( &sensors1, TEMPERATURE1);
 
 }
+
+
+void processDOWrites()
+{
+ int pin = tracePort->parseInt();
+  
+  if( validate( pin, 0, MAX_DISCRETE_PINS  ) )
+  {   
+      int value = tracePort->parseInt(); // get 1 or 0
+      DiscreteIO[pin].dOutput->write( value );
+      
+  }
+  else 
+  {
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.activate();
+  #endif
+
+    *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+      #ifdef IOTesterRS485
+  MAX285TX_ENABLE.reset();delay(20);
+  #endif
+
+  }  
+
+}
+
 
 void processTerminalCommands()
 {
@@ -588,7 +721,7 @@ void processTerminalCommands()
     else
       if (c == DO_WRITE_HEADER)
       {
-       // processWrites();
+       processDOWrites();
       }
     else
       if (c == I_POLL_HEADER)
