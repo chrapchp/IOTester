@@ -22,18 +22,25 @@
 #define POLL_CYCLE_SECONDS 2
 #define PROCESS_TERMINAL
 #define LIGHT_REFRESH_INTERVAL 100
-#define TEMPERATURE1 4  // 22 pin arduino mega as host
+#define TEMPERATURE1 22 // pin arduino mega as host
 #define ONE_TEMPERATURE_PRECISION 9
+#define IOTesterRS485
+#define MAX232_PIN 6
 
-#define IOTesterRS485 
+
+// comment if not using 485
+#define IOTesterRS485
+
+
 #ifdef IOTesterRS485
-  DA_DiscreteOutput MAX485TX_ENABLE = DA_DiscreteOutput(6, HIGH); // 1 is enable, 0 rx enabled
-
-  #define activate485Tx() MAX485TX_ENABLE.activate()
-  #define activate485Rx() tracePort->flush();delay(20); MAX485TX_ENABLE.reset();
+DA_DiscreteOutput MAX485TX_ENABLE = DA_DiscreteOutput(MAX232_PIN, HIGH); // 1 is enable, 0 rx enabled
+#define activate485Tx() MAX485TX_ENABLE.activate()
+#define activate485Rx() tracePort -> flush(); delay(20); MAX485TX_ENABLE.reset();
+bool is485 = true;
 #else
-  #define activate485Tx()
-  #define activate485Rx()
+#define activate485Tx ()
+#define activate485Rx ()
+bool is485 = false;
 #endif
 
 OneWire oneWireBus1(TEMPERATURE1);
@@ -65,7 +72,7 @@ typedef _DiscreteIOEntry DiscreteIOEntry;
 #define MAX_DISCRETE_PINS 14 // 0-13 ardiuino nano
 DiscreteIOEntry DiscreteIO[MAX_DISCRETE_PINS];
 // Serial port to trace to
-HardwareSerial *tracePort = &Serial;
+HardwareSerial * tracePort = & Serial;
 void onFT_002_PulseIn()
 {
   // FT_002.handleFlowDetection();
@@ -74,7 +81,7 @@ void onFT_002_PulseIn()
 void onEdgeDetect(bool state, int pin)
 {
   activate485Tx();
-  *tracePort << "Edge Detection:" << state << " on pin " << pin << endl;
+  * tracePort << "Edge Detection:" << state << " on pin " << pin << endl;
   activate485Rx();
 }
 
@@ -108,75 +115,93 @@ void initAs1Wire(int aPin)
 
 void initAsInput(int aPin)
 {
-  DiscreteIO[aPin].dir = false;
-  DiscreteIO[aPin].isOneWire = false;
-  removeObjectsFor(aPin);
-  DiscreteIO[aPin].dInput = new DA_DiscreteInput(aPin, DA_DiscreteInput::ToggleDetect, true);
-  DiscreteIO[aPin].dInput->setOnEdgeEvent(& onEdgeDetect);
-  activate485Tx();
-  *tracePort << "Pin " << aPin << " defined as input." << endl;
-  activate485Rx();
+
+
+  if (!is485 || (is485 && (aPin != MAX232_PIN) ) )
+  {
+    DiscreteIO[aPin].dir = false;
+    DiscreteIO[aPin].isOneWire = false;
+    removeObjectsFor(aPin);
+    DiscreteIO[aPin].dInput = new DA_DiscreteInput(aPin, DA_DiscreteInput::ToggleDetect, true);
+    DiscreteIO[aPin].dInput -> setOnEdgeEvent(& onEdgeDetect);
+    activate485Tx();
+    * tracePort << "Pin " << aPin << " defined as input." << endl;
+    activate485Rx();
+  }
+  else
+  {
+    activate485Tx();
+    * tracePort << "Pin " << aPin << " cannot be repurposed in RS-485 mode." << endl;
+    activate485Rx();
+  }
 }
 
 void initAsOutput(int aPin)
 {
-  DiscreteIO[aPin].dir = true;
-  DiscreteIO[aPin].isOneWire = false;
-  removeObjectsFor(aPin);
-  DiscreteIO[aPin].dOutput = new DA_DiscreteOutput(aPin, LOW);
-  activate485Tx();
-  *tracePort << "Pin " << aPin << " defined as output." << endl;
-  activate485Rx();
+  if (!is485 || (is485 && (aPin != MAX232_PIN) ) )
+  {
+    DiscreteIO[aPin].dir = true;
+    DiscreteIO[aPin].isOneWire = false;
+    removeObjectsFor(aPin);
+    DiscreteIO[aPin].dOutput = new DA_DiscreteOutput(aPin, LOW);
+    activate485Tx();
+    * tracePort << "Pin " << aPin << " defined as output." << endl;
+    activate485Rx();
+  }
+  else
+  {
+    activate485Tx();
+    * tracePort << "Pin " << aPin << " cannot be repurposed in RS-485 mode." << endl;
+    activate485Rx();
+  }
 }
 
 void initDiscreteIO()
 {
-  initAsInput(2);
+ // initAsInput(2);
   // initAsInput( 7 );
   // initAsInput( 9 );
   // initAsInput( 12 );
   // initAsOutput(3);
   // initAsOutput(9);
-  initAsOutput(10);
+ // initAsOutput(10);
   // initAsOutput(11);
 }
 
-void printOneWireAddress(HardwareSerial *tracePort, DeviceAddress aDeviceAddress, bool aCR)
+void printOneWireAddress(HardwareSerial * tracePort, DeviceAddress aDeviceAddress, bool aCR)
 {
   for (uint8_t i = 0; i < 8; i++)
   {
     // zero pad the address if necessary
     if (aDeviceAddress[i] < 16)
-      *tracePort << '0';
-    tracePort->print(aDeviceAddress[i], HEX);
+      * tracePort << '0';
+    tracePort -> print(aDeviceAddress[i], HEX);
   }
   if (aCR)
-    *tracePort << endl;
+    * tracePort << endl;
 }
 
 void init1WireTemperatureSensor(DallasTemperature * sensor, int pin)
 {
   activate485Tx();
   DeviceAddress address;
-  sensor->begin();
-  if (sensor->getAddress(address, 0))
+  sensor -> begin();
+  if (sensor -> getAddress(address, 0))
   {
 
 #ifdef PROCESS_TERMINAL
-
-    *tracePort << "Channel " << pin << " 1Wire Temperature initialized. Address =  ";
+    * tracePort << "Channel " << pin << " 1Wire Temperature initialized. Address =  ";
     printOneWireAddress(tracePort, address, true);
 #endif
 
-    sensor->setResolution(address, ONE_TEMPERATURE_PRECISION);
+    sensor -> setResolution(address, ONE_TEMPERATURE_PRECISION);
   }
   else
   {
 
 #ifdef PROCESS_TERMINAL
-    *tracePort << "Unable to find address for 1Wire Temperature Device @ " << pin << endl;
+    * tracePort << "Unable to find address for 1Wire Temperature Device @ " << pin << endl;
 #endif
-
 
   }
   activate485Rx();
@@ -184,7 +209,7 @@ void init1WireTemperatureSensor(DallasTemperature * sensor, int pin)
 
 void initOneWireTemps()
 {
-  init1WireTemperatureSensor(&sensors1, TEMPERATURE1);
+  init1WireTemperatureSensor(& sensors1, TEMPERATURE1);
 }
 
 int polling; // 1=polling analogs, 2=polling digitals, -1 nothing
@@ -196,7 +221,7 @@ void setup()
   randomSeed(analogRead(0));
 
 #ifdef PROCESS_TERMINAL
-  tracePort->begin(9600);
+  tracePort -> begin(9600);
   showCommands();
 #endif
 
@@ -223,12 +248,12 @@ void refreshDiscreteInputs(bool trace)
   {
     if (!DiscreteIO[i].dir && DiscreteIO[i].dInput != NULL)
     {
-      DiscreteIO[i].dInput->refresh();
+      DiscreteIO[i].dInput -> refresh();
       if (trace)
       {
-        activate485Tx();        
-        DiscreteIO[i].dInput->serialize(tracePort, true);
-        activate485Rx();        
+        activate485Tx();
+        DiscreteIO[i].dInput -> serialize(tracePort, true);
+        activate485Rx();
       }
     }
   }
@@ -272,60 +297,56 @@ void doUpdateOutputs()
 #define ONE_WIRE_HEADER '1'
 void printDigits(int digits)
 {
-  *tracePort << ":";
+  * tracePort << ":";
   if (digits < 10)
-    *tracePort << '0';
-  *tracePort << digits;
+    * tracePort << '0';
+  * tracePort << digits;
 }
 
 void showCommands()
 {
-
   activate485Tx();
-
-  *tracePort << "-------------------------------------------------------------------" << endl;
-  *tracePort << F("OXX  - Set Discrete Output Pin where XX is pin #") << endl;
-  *tracePort << F("IXX  - Set Discrete Input Pin 14 = all as inputs") << endl;
-  *tracePort << F("RX   - Read Analog Raw X pin") << endl;
-  *tracePort << F("DX   - Read Discrete X Pin") << endl;
-  *tracePort << F("WXX 1|0 - Write Discrete output XX is pin ") << endl;
-  *tracePort << F("DI   - Dump all discrete Inputs ") << endl;
-  *tracePort << F("DO   - Dump all discrete Outputs and toogles output ") << endl;
-  *tracePort << F("DA   - Dump all analog Inputs ") << endl;
-  *tracePort << F("??   - Display commands") << endl;
-  *tracePort << F("PA1|0   - Poll Analogs 1=on 0=off ") << endl;
-  *tracePort << F("TR|S X  - Period Toggle DO X = pin # R=run/S=Stop") << endl;
-  *tracePort << F("1W    - display one wire temperatures") << endl;
-  *tracePort << "------------------------------------------------------------------" << endl;
-
+  * tracePort << "-------------------------------------------------------------------" << endl;
+  * tracePort << F("OXX  - Set Discrete Output Pin where XX is pin #") << endl;
+  * tracePort << F("IXX  - Set Discrete Input Pin 14 = all as inputs") << endl;
+  * tracePort << F("RX   - Read Analog Raw X pin") << endl;
+  * tracePort << F("DX   - Read Discrete X Pin") << endl;
+  * tracePort << F("WXX 1|0 - Write Discrete output XX is pin ") << endl;
+  * tracePort << F("DI   - Dump all discrete Inputs ") << endl;
+  * tracePort << F("DO   - Dump all discrete Outputs and toogles output ") << endl;
+  * tracePort << F("DA   - Dump all analog Inputs ") << endl;
+  * tracePort << F("??   - Display commands") << endl;
+  * tracePort << F("PA1|0   - Poll Analogs 1=on 0=off ") << endl;
+  * tracePort << F("TR|S X  - Period Toggle DO X = pin # R=run/S=Stop") << endl;
+  * tracePort << F("1W    - display one wire temperatures") << endl;
+  * tracePort << "------------------------------------------------------------------" << endl;
   activate485Rx();
-
 }
 
 bool toggleDO(int aPin)
 {
   if (DiscreteIO[aPin].dir && DiscreteIO[aPin].dOutput != NULL)
   {
-    DiscreteIO[aPin].dOutput->toggle();
-    activate485Tx();    
-    DiscreteIO[aPin].dOutput->serialize(tracePort, true);
+    DiscreteIO[aPin].dOutput -> toggle();
+    activate485Tx();
+    DiscreteIO[aPin].dOutput -> serialize(tracePort, true);
     activate485Rx();
     return(true);
   }
   activate485Tx();
-  *tracePort << "Pin " << aPin << " is not defined as an output." << endl;
+  * tracePort << "Pin " << aPin << " is not defined as an output." << endl;
   activate485Rx();
   return(false);
 }
 
 void processTogglePin()
 {
-  char c = tracePort->read();
+  char c = tracePort -> read();
   if (c == 'S')
     currentTogglePin = -1;
   else
   {
-    int pin = tracePort->parseInt();
+    int pin = tracePort -> parseInt();
     if (validate(pin, 0, MAX_DISCRETE_PINS))
     {
       currentTogglePin = (toggleDO(pin) == true? pin:-1);
@@ -333,7 +354,7 @@ void processTogglePin()
     else
     {
       activate485Tx();
-      *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+      * tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
       activate485Tx();
     }
   }
@@ -359,7 +380,7 @@ bool validate(int aValue, int min, int max)
 
 void processSetupAsInputs()
 {
-  int pin = tracePort->parseInt();
+  int pin = tracePort -> parseInt();
   if (validate(pin, 0, MAX_DISCRETE_PINS))
   {
     if (pin == MAX_DISCRETE_PINS)
@@ -377,14 +398,14 @@ void processSetupAsInputs()
   else
   {
     activate485Tx();
-    *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+    * tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
     activate485Rx();
   }
 }
 
 void processSetupAsOutputs()
 {
-  int pin = tracePort->parseInt();
+  int pin = tracePort -> parseInt();
   if (validate(pin, 0, MAX_DISCRETE_PINS))
   {
     if (pin == MAX_DISCRETE_PINS)
@@ -402,14 +423,14 @@ void processSetupAsOutputs()
   else
   {
     activate485Tx();
-    *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+    * tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
     activate485Rx();
   }
 }
 
 void processReadDiscretes()
 {
-  char c = tracePort->read();
+  char c = tracePort -> read();
   switch (c)
   {
     case 'I':
@@ -431,6 +452,10 @@ void processReadDiscretes()
 
 void readAnalogs()
 {
+
+      activate485Tx();
+    * tracePort << "**** Analogs ****  "  << endl;
+    activate485Rx();
   for (int i = 0; i < 8; i++)
   {
     int sensorValue = analogRead(i);
@@ -439,7 +464,11 @@ void readAnalogs()
     delay(10);
     sensorValue = map(sensorValue, 0, 1023, 0, 5);
     activate485Tx();
-    *tracePort << "Analog  " << i << " = " << sensorValue << endl;
+    if( i % 2 )
+    * tracePort << "PIN A" << i << " = " << sensorValue << endl;
+  else
+    * tracePort << "PIN A(" << i << " = " << sensorValue << ")" << endl;
+
     activate485Rx();
   }
 }
@@ -452,12 +481,12 @@ void refreshPolling()
 
 void processPolling()
 {
-  char c = tracePort->read();
+  char c = tracePort -> read();
   int mode = -1;
   switch (c)
   {
     case 'A':
-      mode = tracePort->parseInt();
+      mode = tracePort -> parseInt();
       if (validate(mode, 0, 1))
       {
         polling = (mode == 1? 1:-1);
@@ -465,12 +494,12 @@ void processPolling()
       else
       {
         activate485Tx();
-        *tracePort << mode << " is outside 0-1" << endl;
+        * tracePort << mode << " is outside 0-1" << endl;
         activate485Rx();
       }
       break;
     case 'D':
-      mode = tracePort->parseInt();
+      mode = tracePort -> parseInt();
       if (validate(mode, 0, 1))
       {
         polling = (mode == 1? 2:-1);
@@ -478,7 +507,7 @@ void processPolling()
       else
       {
         activate485Tx();
-        *tracePort << mode << " is outside 0-1" << endl;
+        * tracePort << mode << " is outside 0-1" << endl;
         activate485Rx();
       }
       // 
@@ -490,40 +519,40 @@ void processPolling()
 
 void poll1WireTemperature(DallasTemperature * sensor, int aPin)
 {
-  sensor->requestTemperatures();
+  sensor -> requestTemperatures();
   activate485Tx();
-  *tracePort << "Temperature " << aPin << " = " << sensor->getTempCByIndex(0) << " C" << endl;
+  * tracePort << "Temperature " << aPin << " = " << sensor -> getTempCByIndex(0) << " C" << endl;
   activate485Rx();
 }
 
 void processOneWireTemperatures()
 {
-  char c = tracePort->read();
+  char c = tracePort -> read();
   poll1WireTemperature(& sensors1, TEMPERATURE1);
 }
 
 void processDOWrites()
 {
-  int pin = tracePort->parseInt();
+  int pin = tracePort -> parseInt();
   if (validate(pin, 0, MAX_DISCRETE_PINS))
   {
-    int value = tracePort->parseInt(); // get 1 or 0
-    DiscreteIO[pin].dOutput->write(value);
+    int value = tracePort -> parseInt(); // get 1 or 0
+    DiscreteIO[pin].dOutput -> write(value);
   }
   else
   {
     activate485Tx();
-    *tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
+    * tracePort << "Pin " << pin << " is invalid. Range 0-" << MAX_DISCRETE_PINS << endl;
     activate485Rx();
   }
 }
 
 void processTerminalCommands()
 {
-  if (tracePort->available() > 1)
+  if (tracePort -> available() > 1)
   {
     // wait for at least two characters
-    char c = tracePort->read();
+    char c = tracePort -> read();
     // S*tracePort << "c=" << c << endl;
     // *tracePort << c << endl;
     if (c == DI_SETINPUT_HEADER)
@@ -545,7 +574,7 @@ void processTerminalCommands()
     else
       if (c == HELP_HEADER)
       {
-        tracePort->read();
+        tracePort -> read();
         showCommands();
       }
     else
